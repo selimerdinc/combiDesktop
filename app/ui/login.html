@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="tr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Giriş - Kombi Master Pro</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            min-height: 100vh;
+        }
+    </style>
+</head>
+
+<body class="flex items-center justify-center">
+    <div class="bg-white/10 backdrop-blur-lg p-10 rounded-3xl shadow-2xl border border-white/20 w-96">
+        <div class="text-center mb-8">
+            <div class="text-5xl mb-4">🔧</div>
+            <h1 class="text-2xl font-black text-white">KOMBİ PRO</h1>
+            <p class="text-slate-400 text-sm mt-2">Yönetim Paneli</p>
+        </div>
+
+        <form onsubmit="login(event)" class="space-y-5">
+            <div>
+                <label class="block text-xs font-bold text-slate-400 mb-2">KULLANICI ADI</label>
+                <input type="text" id="username" placeholder="Username" required autocomplete="username"
+                    class="w-full bg-white/10 border border-white/20 text-white p-4 rounded-xl focus:ring-2 focus:ring-sky-500 focus:outline-none placeholder-slate-500">
+            </div>
+
+            <div>
+                <label class="block text-xs font-bold text-slate-400 mb-2">ŞİFRE</label>
+                <input type="password" id="password" placeholder="••••••••" required autocomplete="current-password"
+                    class="w-full bg-white/10 border border-white/20 text-white p-4 rounded-xl focus:ring-2 focus:ring-sky-500 focus:outline-none placeholder-slate-500">
+            </div>
+
+            <button type="submit"
+                class="w-full bg-sky-600 hover:bg-sky-700 text-white p-4 rounded-xl font-black transition-all transform hover:scale-105">
+                GİRİŞ YAP
+            </button>
+        </form>
+
+        <p id="error" class="text-red-400 text-center mt-4 text-sm hidden">Kullanıcı adı veya şifre hatalı!</p>
+    </div>
+
+    <script>
+        async function login(e) {
+            e.preventDefault();
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const errorEl = document.getElementById('error');
+
+            try {
+                const res = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+
+                if (res.ok) {
+                    window.location.href = '/';
+                } else {
+                    errorEl.classList.remove('hidden');
+                    document.getElementById('password').value = '';
+                }
+            } catch (err) {
+                errorEl.classList.remove('hidden');
+            }
+        }
+    </script>
+</body>
+
+</html>

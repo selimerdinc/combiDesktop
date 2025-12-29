@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="tr">
+
+<head>
+    <meta charset="UTF-8">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            background: #f8fafc;
+            font-family: sans-serif;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .view {
+            display: none;
+            height: 100%;
+        }
+
+        .view.active {
+            display: block;
+        }
+    </style>
+</head>
+
+<body class="flex">
+    <aside class="w-64 bg-slate-900 text-white flex flex-col">
+        <div class="p-6 border-b border-slate-800">
+            <div class="text-xl font-black text-sky-400">🔧 KOMBİ PRO</div>
+            <div id="current-user" class="text-xs text-slate-400 mt-1">👤 Yükleniyor...</div>
+        </div>
+        <nav class="flex-1 p-4 space-y-2">
+            <div onclick="ui.show('list')"
+                class="p-3 rounded-xl hover:bg-slate-800 cursor-pointer flex items-center gap-3">👥 Müşteriler</div>
+            <div onclick="ui.show('add')"
+                class="p-3 rounded-xl hover:bg-slate-800 cursor-pointer flex items-center gap-3">➕ Yeni Kayıt</div>
+            <div onclick="ui.show('reminders')"
+                class="p-3 rounded-xl hover:bg-slate-800 cursor-pointer flex items-center gap-3">🔔 Hatırlatıcılar</div>
+            <div onclick="ui.show('finance')"
+                class="p-3 rounded-xl hover:bg-slate-800 cursor-pointer flex items-center gap-3">📊 Aylık Gelir</div>
+            <div onclick="ui.show('reminders'); ui.switchTab('debt')"
+                class="p-3 rounded-xl hover:bg-slate-800 cursor-pointer flex items-center gap-3">💸 Alacaklar</div>
+            <div onclick="ui.show('users')"
+                class="p-3 rounded-xl hover:bg-slate-800 cursor-pointer flex items-center gap-3">👤 Kullanıcılar</div>
+            <div class="pt-4 border-t border-slate-800"><button onclick="document.getElementById('xl').click()"
+                    class="w-full bg-emerald-600 p-3 rounded-xl font-bold">📥 Excel Aktar</button></div>
+            <input type="file" id="xl" class="hidden" onchange="ui.upload(this)">
+            <div class="pt-2"><a href="/api/backup/download"
+                    class="block w-full bg-blue-600 p-3 rounded-xl font-bold text-center hover:bg-blue-700">💾 Backup
+                    İndir</a></div>
+            <div class="pt-2"><button onclick="ui.logout()"
+                    class="w-full bg-red-600 p-3 rounded-xl font-bold hover:bg-red-700">🚪 Çıkış Yap</button></div>
+        </nav>
+    </aside>
+
+    <main class="flex-1 overflow-y-auto p-8">
+        <div class="grid grid-cols-2 gap-6 mb-8">
+            <div onclick="ui.show('finance')"
+                class="bg-white p-6 rounded-2xl shadow-sm border-l-4 border-sky-500 hover:shadow-md cursor-pointer transition">
+                <p class="text-slate-500 text-xs font-bold uppercase tracking-wider">BU AY TOPLAM TAHSİLAT</p>
+                <p id="stat-m" class="text-3xl font-black text-slate-800 mt-1">0 TL</p>
+            </div>
+            <div onclick="ui.show('reminders'); ui.switchTab('debt')"
+                class="bg-white p-6 rounded-2xl shadow-sm border-l-4 border-amber-500 hover:shadow-md cursor-pointer transition">
+                <p class="text-slate-500 text-xs font-bold uppercase tracking-wider text-amber-600">BEKLEYEN TOPLAM
+                    ALACAK</p>
+                <p id="stat-r" class="text-3xl font-black text-amber-600 mt-1">0 TL</p>
+            </div>
+        </div>
+
+        <section id="v-list" class="view active">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold">Müşteri Listesi</h2>
+                <input type="text" id="q" onkeyup="ui.load()" placeholder="Ara (İsim, Tel)..."
+                    class="border p-3 rounded-xl w-80 outline-none shadow-sm focus:ring-2 focus:ring-sky-500">
+            </div>
+            <div class="bg-white rounded-2xl border overflow-hidden">
+                <table class="w-full text-left">
+                    <thead class="bg-slate-50 border-b">
+                        <tr>
+                            <th class="p-4">Müşteri</th>
+                            <th class="p-4">İletişim</th>
+                            <th class="p-4">Bölge</th>
+                            <th class="p-4 text-right">Eylem</th>
+                        </tr>
+                    </thead>
+                    <tbody id="l-b" class="divide-y"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <section id="v-det" class="view">
+            <div class="flex justify-between items-center mb-6">
+                <h2 id="d-title" class="text-2xl font-bold text-blue-800">Müşteri Profili</h2><button
+                    onclick="ui.show('list')" class="text-slate-400 font-bold hover:text-slate-600 transition">←
+                    Geri</button>
+            </div>
+            <div class="bg-blue-50 p-6 rounded-2xl mb-6 grid grid-cols-2 gap-4 border border-blue-100">
+                <div><label class="text-[10px] font-black text-blue-400 uppercase">Telefon</label>
+                    <p id="d-phone" class="font-bold text-slate-700"></p>
+                </div>
+                <div><label class="text-[10px] font-black text-blue-400 uppercase">Bölge</label>
+                    <p id="d-district" class="font-bold text-slate-700"></p>
+                </div>
+                <div class="col-span-2"><label class="text-[10px] font-black text-blue-400 uppercase">Adres</label>
+                    <p id="d-address" class="text-slate-600"></p>
+                </div>
+            </div>
+            <div class="flex gap-2 mb-6">
+                <button
+                    onclick="ui.openWhatsapp(document.getElementById('d-phone').innerText, 'genel', document.getElementById('d-title').innerText)"
+                    class="bg-green-500 text-white px-4 py-2 rounded-lg font-bold hover:bg-green-600">WhatsApp</button>
+                <button onclick="ui.editMode()" class="bg-blue-600 text-white px-4 py-2 rounded-lg font-bold">Bilgileri
+                    Düzenle</button>
+                <button onclick="ui.deleteCust()"
+                    class="bg-red-50 text-red-600 px-4 py-2 rounded-lg font-bold">Müşteriyi Sil</button>
+            </div>
+            <div class="bg-white rounded-2xl border overflow-hidden shadow-sm">
+                <table class="w-full text-left">
+                    <thead class="bg-slate-50 border-b">
+                        <tr>
+                            <th class="p-4">Tarih</th>
+                            <th class="p-4">Yapılan İş</th>
+                            <th class="p-4">Ödenen/Toplam</th>
+                            <th class="p-4 text-right">Durum</th>
+                        </tr>
+                    </thead>
+                    <tbody id="d-b" class="divide-y"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <section id="v-edit" class="view">
+            <div class="max-w-xl bg-white p-8 rounded-3xl border mx-auto shadow-lg">
+                <h2 class="text-2xl font-black mb-6 text-blue-600">Bilgileri Güncelle</h2>
+                <form onsubmit="ui.updateCust(event)" class="space-y-4">
+                    <div><label class="text-xs font-bold">AD SOYAD</label><input type="text" name="name" id="edit-name"
+                            required class="w-full border p-3 rounded-xl mt-1"></div>
+                    <div><label class="text-xs font-bold">TELEFON (En az 10 haneli)</label><input type="text"
+                            name="phone" id="edit-phone" required class="w-full border p-3 rounded-xl mt-1"></div>
+                    <div><label class="text-xs font-bold">SEMT</label><input type="text" name="district"
+                            id="edit-district" class="w-full border p-3 rounded-xl mt-1"></div>
+                    <div><label class="text-xs font-bold">ADRES</label><textarea name="address" id="edit-address"
+                            class="w-full border p-3 rounded-xl mt-1 h-24"></textarea></div>
+                    <div class="flex gap-3 pt-4"><button type="submit"
+                            class="flex-1 bg-blue-600 text-white p-4 rounded-xl font-bold">KAYDET</button><button
+                            type="button" onclick="ui.show('det')"
+                            class="bg-slate-100 text-slate-500 px-6 rounded-xl font-bold">İPTAL</button></div>
+                </form>
+            </div>
+        </section>
+
+        <section id="v-finance" class="view">
+            <h2 class="text-2xl font-bold mb-6">📊 Aylık Gelir</h2>
+            <div class="bg-white rounded-2xl border overflow-hidden">
+                <table class="w-full text-left">
+                    <thead class="bg-slate-50 border-b">
+                        <tr>
+                            <th class="p-4">Dönem</th>
+                            <th class="p-4">Tahsilat</th>
+                        </tr>
+                    </thead>
+                    <tbody id="f-b" class="divide-y"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <section id="v-reminders" class="view">
+            <div class="flex gap-4 mb-6 border-b pb-1">
+                <button onclick="ui.switchTab('main')" id="tab-btn-main"
+                    class="px-6 py-2 font-black text-lg border-b-4 border-sky-500 text-sky-600 transition">🔔 Bakım
+                    Hatırlatmaları</button>
+                <button onclick="ui.switchTab('debt')" id="tab-btn-debt"
+                    class="hidden px-6 py-2 font-black text-lg border-b-4 border-transparent text-slate-400 hover:text-amber-600 transition">💸
+                    Alacaklar</button>
+            </div>
+
+            <div id="tab-content-main">
+                <div class="bg-white rounded-2xl border overflow-hidden">
+                    <table class="w-full text-left">
+                        <thead class="bg-slate-50 border-b">
+                            <tr>
+                                <th class="p-4">Müşteri</th>
+                                <th class="p-4">Telefon</th>
+                                <th class="p-4">Tarih</th>
+                                <th class="p-4 text-right">Durum</th>
+                            </tr>
+                        </thead>
+                        <tbody id="r-b" class="divide-y"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div id="tab-content-debt" class="hidden">
+                <div class="bg-white rounded-2xl border overflow-hidden">
+                    <table class="w-full text-left">
+                        <thead class="bg-red-50 border-b border-red-100">
+                            <tr>
+                                <th class="p-4">Müşteri</th>
+                                <th class="p-4">Borç</th>
+                                <th class="p-4 text-right">Eylem</th>
+                            </tr>
+                        </thead>
+                        <tbody id="u-b" class="divide-y"></tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <section id="v-users" class="view">
+            <h2 class="text-2xl font-bold mb-6">👤 Kullanıcı Yönetimi</h2>
+
+            <!-- Kullanıcı Listesi -->
+            <div class="bg-white rounded-2xl border mb-6 overflow-hidden">
+                <div class="bg-slate-50 p-4 border-b">
+                    <h3 class="font-bold text-slate-700">📋 Mevcut Kullanıcılar</h3>
+                </div>
+                <table class="w-full text-left">
+                    <thead class="bg-slate-50 border-b">
+                        <tr>
+                            <th class="p-4">Kullanıcı Adı</th>
+                            <th class="p-4">Ad Soyad</th>
+                            <th class="p-4">Kayıt Tarihi</th>
+                            <th class="p-4 text-right">Eylem</th>
+                        </tr>
+                    </thead>
+                    <tbody id="users-list" class="divide-y"></tbody>
+                </table>
+            </div>
+
+            <div class="grid grid-cols-2 gap-8">
+                <div class="bg-white p-8 rounded-2xl border">
+                    <h3 class="text-lg font-bold text-slate-700 mb-4">➕ Yeni Kullanıcı Ekle</h3>
+                    <form onsubmit="ui.createUser(event)" class="space-y-4">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 mb-1">KULLANICI ADI</label>
+                            <input type="text" id="new-username" placeholder="ornek" required
+                                class="w-full border p-3 rounded-xl outline-none focus:ring-2 focus:ring-sky-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 mb-1">AD SOYAD</label>
+                            <input type="text" id="new-name" placeholder="Ahmet Yılmaz"
+                                class="w-full border p-3 rounded-xl outline-none focus:ring-2 focus:ring-sky-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 mb-1">ŞİFRE (min 6 karakter)</label>
+                            <input type="password" id="new-password" placeholder="••••••" required minlength="6"
+                                class="w-full border p-3 rounded-xl outline-none focus:ring-2 focus:ring-sky-500">
+                        </div>
+                        <button type="submit"
+                            class="w-full bg-sky-600 text-white p-4 rounded-xl font-bold hover:bg-sky-700">KULLANICI
+                            OLUŞTUR</button>
+                    </form>
+                    <p id="user-msg" class="text-center mt-4 text-sm hidden"></p>
+                </div>
+                <div class="bg-amber-50 p-8 rounded-2xl border border-amber-200">
+                    <h3 class="text-lg font-bold text-slate-700 mb-4">🔒 Şifremi Değiştir</h3>
+                    <form onsubmit="ui.changePassword(event)" class="space-y-4">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 mb-1">MEVCUT ŞİFRE</label>
+                            <input type="password" id="current-password" placeholder="••••••" required
+                                class="w-full border p-3 rounded-xl outline-none focus:ring-2 focus:ring-amber-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 mb-1">YENİ ŞİFRE (min 6
+                                karakter)</label>
+                            <input type="password" id="new-password-change" placeholder="••••••" required minlength="6"
+                                class="w-full border p-3 rounded-xl outline-none focus:ring-2 focus:ring-amber-500">
+                        </div>
+                        <button type="submit"
+                            class="w-full bg-amber-600 text-white p-4 rounded-xl font-bold hover:bg-amber-700">ŞİFREYİ
+                            GÜNCELLE</button>
+                    </form>
+                    <p id="password-msg" class="text-center mt-4 text-sm hidden"></p>
+                </div>
+            </div>
+        </section>
+
+        <section id="v-add" class="view">
+            <div class="max-w-2xl bg-white p-10 rounded-3xl border mx-auto">
+                <h2 class="text-2xl font-black mb-8">Yeni Servis Kaydı</h2>
+                <form onsubmit="ui.save(event)" class="space-y-5">
+                    <div class="grid grid-cols-2 gap-5">
+                        <div class="col-span-2">
+                            <label class="block text-xs font-bold text-slate-500 mb-1 ml-1">İŞLEM TARİHİ</label>
+                            <input type="date" name="date" id="add-date" required
+                                class="w-full border p-4 rounded-xl font-bold text-slate-700">
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-5">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 mb-1 ml-1">AD SOYAD</label>
+                            <input type="text" name="name" placeholder="Müşteri Adı Soyadı" required
+                                class="w-full border p-4 rounded-xl">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 mb-1 ml-1">TELEFON</label>
+                            <input type="text" name="phone" placeholder="5XX..." required
+                                class="w-full border p-4 rounded-xl">
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-5">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 mb-1 ml-1">SEMT / İLÇE</label>
+                            <input type="text" name="district" placeholder="Örn: Sarıyer"
+                                class="w-full border p-4 rounded-xl">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 mb-1 ml-1">CİHAZ MARKASI</label>
+                            <input type="text" name="brand" placeholder="Örn: Bosch, Vaillant"
+                                class="w-full border p-4 rounded-xl">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 mb-1 ml-1">AÇIK ADRES</label>
+                        <textarea name="address" placeholder="Tam adres bilgisi..."
+                            class="w-full border p-4 rounded-xl h-24"></textarea>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 mb-1 ml-1">YAPILAN İŞLEM</label>
+                        <input type="text" name="job" placeholder="Örn: Yıllık Bakım, Kart Tamiri" required
+                            class="w-full border p-4 rounded-xl">
+                    </div>
+                    <div class="grid grid-cols-3 gap-5">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 mb-1 ml-1">İŞLEM TÜRÜ</label>
+                            <select name="type" class="w-full border p-4 rounded-xl">
+                                <option>Bakım</option>
+                                <option>Arıza</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 mb-1 ml-1">TOPLAM TUTAR</label>
+                            <input type="text" name="total_fee" placeholder="0.00" required
+                                class="w-full border p-4 rounded-xl">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 mb-1 ml-1">ALINAN ÖDEME</label>
+                            <input type="text" name="paid_fee" placeholder="0.00" required
+                                class="w-full border p-4 rounded-xl">
+                        </div>
+                    </div>
+                    <button type="submit"
+                        class="w-full bg-sky-600 text-white p-5 rounded-xl font-black hover:bg-sky-700 transition">KAYDI
+                        TAMAMLA</button>
+                </form>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        const api = "/api";
+        let currentCustId = null;
+        class UIManager {
+            show(v) {
+                document.querySelectorAll('.view').forEach(el => el.classList.remove('active'));
+                const t = document.getElementById('v-' + v); if (t) t.classList.add('active');
+                if (v === 'list') this.load(); if (v === 'finance') this.loadFinance();
+                if (v === 'reminders') { this.loadReminders(); this.switchTab('main'); }
+                if (v === 'users') this.loadUsers();
+                if (v === 'add') document.getElementById('add-date').valueAsDate = new Date();
+                this.updateStats();
+            }
+            async load() {
+                const q = encodeURIComponent(document.getElementById('q').value);
+                const res = await fetch(`${api}/customers?q=${q}`);
+                const data = await res.json();
+                document.getElementById('l-b').innerHTML = data.map(c => `<tr class="hover:bg-slate-50 cursor-pointer" onclick="ui.details(${c.id})"><td class="p-4 font-bold text-slate-700">${c.name}</td><td class="p-4 text-slate-500">${c.phone}</td><td class="p-4 text-xs font-medium text-slate-400">${c.district}</td><td class="p-4 text-right text-sky-600 font-bold">Detay →</td></tr>`).join('');
+            }
+            async details(id) {
+                try {
+                    const c = await (await fetch(`${api}/customers/${id}`)).json();
+                    currentCustId = id;
+                    document.getElementById('d-title').innerText = c.name;
+                    document.getElementById('d-phone').innerText = c.phone || "---";
+                    document.getElementById('d-district').innerText = c.district || "---";
+                    document.getElementById('d-address').innerText = c.address || "---";
+                    const h = await (await fetch(`${api}/customers/${id}/history`)).json();
+                    document.getElementById('d-b').innerHTML = h.map(r => `<tr><td class="p-4 text-xs font-bold text-slate-400">${r.date}</td><td class="p-4 font-bold text-slate-700">${r.job}</td><td class="p-4 font-black text-slate-500">${r.paid_fee}/${r.total_fee} TL</td><td class="p-4 text-right"><span class="px-3 py-1 rounded-lg text-[10px] font-black ${r.is_paid ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}">${r.is_paid ? 'ÖDENDİ' : 'BORÇ'}</span></td></tr>`).join('');
+                    this.show('det');
+                } catch (e) { alert("Detay hatası!"); }
+            }
+            async editMode() {
+                const c = await (await fetch(`${api}/customers/${currentCustId}`)).json();
+                document.getElementById('edit-name').value = c.name;
+                document.getElementById('edit-phone').value = c.phone;
+                document.getElementById('edit-district').value = c.district;
+                document.getElementById('edit-address').value = c.address;
+                this.show('edit');
+            }
+            async updateCust(e) {
+                e.preventDefault();
+                const res = await fetch(`${api}/customers/${currentCustId}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(Object.fromEntries(new FormData(e.target))) });
+                const r = await res.json();
+                if (res.ok) { alert("Güncellendi!"); currentCustId = r.new_id; this.details(currentCustId); } else { alert(r.detail); }
+            }
+            async deleteCust() {
+                if (confirm("Silmek istediğinize emin misiniz?")) { await fetch(`${api}/customers/${currentCustId}`, { method: 'DELETE' }); this.show('list'); }
+            }
+            async loadFinance() {
+                const data = await (await fetch(`${api}/finance/monthly`)).json();
+                document.getElementById('f-b').innerHTML = data.map(f => `<tr><td class="p-4 font-black text-slate-700">${f.month}</td><td class="p-4 text-emerald-600 font-black">${f.total.toLocaleString()} TL</td></tr>`).join('');
+            }
+            async collect(id) {
+                if (confirm("Ödeme alındı mı?")) { await fetch(`${api}/records/${id}/collect`, { method: 'POST' }); this.loadReminders(); this.updateStats(); }
+            }
+            async openWhatsapp(phone, type, name, amount) {
+                if (!phone || phone.length < 10) return alert("Geçerli bir telefon numarası yok!");
+                let p = phone.replace(/\D/g, '');
+                if (p.startsWith('0')) p = p.substring(1);
+                if (!p.startsWith('90')) p = '90' + p;
+
+                let msg = "";
+                if (type === 'bakim') msg = `Sayın ${name}, kombi bakım zamanınız gelmiştir. Randevu oluşturmak için lütfen iletişime geçiniz.`;
+                if (type === 'borc') msg = `Sayın ${name}, ${amount} TL tutarındaki bakiyeniz için ödeme yapmanızı rica ederiz.`;
+                if (type === 'genel') msg = `Sayın ${name}, `;
+
+                // window.open yerine Python API kullanılır
+                if (window.pywebview && window.pywebview.api) {
+                    window.pywebview.api.open_external(`https://wa.me/${p}?text=${encodeURIComponent(msg)}`);
+                } else {
+                    // Yedek yöntem (tarayıcıda çalışıyorsa)
+                    window.open(`https://wa.me/${p}?text=${encodeURIComponent(msg)}`, '_blank');
+                }
+            }
+
+            async loadReminders() {
+                // Bakımları Yükle
+                const data = await (await fetch(`${api}/reminders`)).json();
+                const today = new Date().toISOString().split('T')[0];
+                document.getElementById('r-b').innerHTML = data.map(r => `<tr><td class="p-4 font-bold text-slate-700">${r.name}</td><td class="p-4 text-slate-500">${r.phone}</td><td class="p-4 font-black ${r.reminder_date < today ? 'text-red-600' : 'text-emerald-600'}">${r.reminder_date}</td><td class="p-4 text-right flex justify-end items-center gap-2"><button onclick="ui.openWhatsapp('${r.phone}', 'bakim', '${r.name}', 0)" class="bg-green-500 text-white px-3 py-1 rounded-lg text-[10px] font-bold hover:bg-green-600">🔔 Hatırlat</button><span class="px-3 py-1 rounded-lg text-[10px] font-black ${r.reminder_date < today ? 'bg-red-100 text-red-600' : 'bg-emerald-100 text-emerald-600'}">${r.reminder_date < today ? 'GEÇMİŞ' : 'YAKIN'}</span></td></tr>`).join('');
+
+                // Alacakları Yükle (Tab entegrasyonu için)
+                const unpaid = await (await fetch(`${api}/finance/unpaid`)).json();
+                document.getElementById('u-b').innerHTML = unpaid.map(r => `<tr><td class="p-4 font-bold">${r.name}</td><td class="p-4 font-black text-amber-700">${r.debt.toLocaleString()} TL</td><td class="p-4 text-right flex justify-end items-center gap-2"><button onclick="ui.openWhatsapp('${r.phone}', 'borc', '${r.name}', '${r.debt.toLocaleString()}')" class="bg-green-500 text-white px-3 py-1 rounded-lg text-[10px] font-bold hover:bg-green-600">💬 Talep Et</button><button onclick="ui.collect(${r.id})" class="bg-emerald-600 text-white px-4 py-2 rounded-xl text-xs font-black">ÖDEME ALINDI</button></td></tr>`).join('');
+
+                // Tab Yönetimi
+                const debtTabBtn = document.getElementById('tab-btn-debt');
+                if (unpaid.length > 0) {
+                    debtTabBtn.classList.remove('hidden');
+                } else {
+                    debtTabBtn.classList.add('hidden');
+                    if (!document.getElementById('tab-content-debt').classList.contains('hidden')) {
+                        this.switchTab('main'); // Eğer açıksa ana sekmeye at
+                    }
+                }
+            }
+            switchTab(t) {
+                ['main', 'debt'].forEach(x => {
+                    document.getElementById('tab-content-' + x).classList.add('hidden');
+                    const btn = document.getElementById('tab-btn-' + x);
+                    btn.classList.remove('border-sky-500', 'text-sky-600', 'border-amber-500', 'text-amber-600');
+                    btn.classList.add('border-transparent', 'text-slate-400');
+                });
+                document.getElementById('tab-content-' + t).classList.remove('hidden');
+                const activeBtn = document.getElementById('tab-btn-' + t);
+                activeBtn.classList.remove('border-transparent', 'text-slate-400');
+                if (t === 'main') activeBtn.classList.add('border-sky-500', 'text-sky-600');
+                if (t === 'debt') activeBtn.classList.add('border-amber-500', 'text-amber-600');
+            }
+            async updateStats() {
+                const d = await (await fetch(`${api}/finance/stats`)).json();
+                document.getElementById('stat-m').innerText = (d.aylik || 0).toLocaleString() + " TL";
+                document.getElementById('stat-r').innerText = (d.alinacak || 0).toLocaleString() + " TL";
+            }
+            async save(e) {
+                e.preventDefault();
+                const res = await fetch(`${api}/customers`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(Object.fromEntries(new FormData(e.target))) });
+                if (res.ok) { alert("Kaydedildi!"); this.show('list'); e.target.reset(); } else { alert("Hata: " + (await res.json()).detail); }
+            }
+            async upload(input) {
+                const fd = new FormData(); fd.append('file', input.files[0]);
+                const res = await fetch(`${api}/import-excel`, { method: 'POST', body: fd });
+                const d = await res.json(); alert(`${d.count} başarılı.`); this.load(); input.value = "";
+            }
+            async createUser(e) {
+                e.preventDefault();
+                const username = document.getElementById('new-username').value;
+                const name = document.getElementById('new-name').value;
+                const password = document.getElementById('new-password').value;
+                const msgEl = document.getElementById('user-msg');
+
+                try {
+                    const res = await fetch(`${api}/auth/register`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ username, name, password })
+                    });
+
+                    if (res.ok) {
+                        msgEl.innerText = '✅ Kullanıcı başarıyla oluşturuldu!';
+                        msgEl.className = 'text-center mt-4 text-sm text-green-600';
+                        msgEl.classList.remove('hidden');
+                        document.getElementById('new-username').value = '';
+                        document.getElementById('new-name').value = '';
+                        document.getElementById('new-password').value = '';
+                    } else {
+                        const err = await res.json();
+                        msgEl.innerText = '❌ ' + (err.detail || 'Hata oluştu');
+                        msgEl.className = 'text-center mt-4 text-sm text-red-600';
+                        msgEl.classList.remove('hidden');
+                    }
+                } catch (err) {
+                    msgEl.innerText = '❌ Bağlantı hatası';
+                    msgEl.className = 'text-center mt-4 text-sm text-red-600';
+                    msgEl.classList.remove('hidden');
+                }
+            }
+            async logout() {
+                await fetch(`${api}/auth/logout`, { method: 'POST' });
+                window.location.href = '/login';
+            }
+            async changePassword(e) {
+                e.preventDefault();
+                const currentPassword = document.getElementById('current-password').value;
+                const newPassword = document.getElementById('new-password-change').value;
+                const msgEl = document.getElementById('password-msg');
+
+                try {
+                    const res = await fetch(`${api}/auth/change-password`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ current_password: currentPassword, new_password: newPassword })
+                    });
+
+                    if (res.ok) {
+                        msgEl.innerText = '✅ Şifre başarıyla değiştirildi!';
+                        msgEl.className = 'text-center mt-4 text-sm text-green-600';
+                        msgEl.classList.remove('hidden');
+                        document.getElementById('current-password').value = '';
+                        document.getElementById('new-password-change').value = '';
+                    } else {
+                        const err = await res.json();
+                        msgEl.innerText = '❌ ' + (err.detail || 'Hata oluştu');
+                        msgEl.className = 'text-center mt-4 text-sm text-red-600';
+                        msgEl.classList.remove('hidden');
+                    }
+                } catch (err) {
+                    msgEl.innerText = '❌ Bağlantı hatası';
+                    msgEl.className = 'text-center mt-4 text-sm text-red-600';
+                    msgEl.classList.remove('hidden');
+                }
+            }
+            async loadUsers() {
+                try {
+                    const res = await fetch(`${api}/auth/users`);
+                    if (!res.ok) return;
+                    const users = await res.json();
+                    document.getElementById('users-list').innerHTML = users.map(u => `
+                        <tr class="hover:bg-slate-50">
+                            <td class="p-4 font-bold text-slate-700">${u.username}</td>
+                            <td class="p-4 text-slate-600">${u.name || '-'}</td>
+                            <td class="p-4 text-xs text-slate-400">${u.created_at ? u.created_at.split(' ')[0] : '-'}</td>
+                            <td class="p-4 text-right">
+                                <button onclick="ui.deleteUser(${u.id}, '${u.username}')" 
+                                    class="px-3 py-1 bg-red-100 text-red-700 rounded-lg text-xs font-bold hover:bg-red-200">
+                                    🗑️ Sil
+                                </button>
+                            </td>
+                        </tr>
+                    `).join('');
+                } catch (e) { console.error('Users yüklenemedi:', e); }
+            }
+            async deleteUser(userId, username) {
+                if (!confirm(`"${username}" kullanıcısını silmek istediğinize emin misiniz? Tüm müşterileri ve kayıtları da silinecek!`)) return;
+
+                try {
+                    const res = await fetch(`${api}/auth/users/${userId}`, { method: 'DELETE' });
+                    if (res.ok) {
+                        alert('Kullanıcı silindi!');
+                        this.loadUsers();
+                    } else {
+                        const err = await res.json();
+                        alert('Hata: ' + (err.detail || 'Silinemedi'));
+                    }
+                } catch (e) { alert('Bağlantı hatası!'); }
+            }
+        }
+        const ui = new UIManager();
+        window.onload = async () => {
+            // Aktif kullanıcı bilgisini al
+            try {
+                const authRes = await fetch(`${api}/auth/check`);
+                const authData = await authRes.json();
+                if (authData.authenticated) {
+                    document.getElementById('current-user').innerText = '👤 ' + (authData.name || authData.username);
+                }
+            } catch (e) { }
+            ui.show('list');
+            ui.updateStats();
+        };
+    </script>
+</body>
+
+</html>

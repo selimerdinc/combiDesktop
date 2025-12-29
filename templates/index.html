@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <title>Kombi Master Pro v2</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Modern Scrollbar ve Cam Efekti */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        .glass-card { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); }
+    </style>
+</head>
+<body class="bg-slate-100 flex h-screen overflow-hidden">
+
+    <aside class="w-64 bg-slate-900 text-white flex flex-col shadow-2xl">
+        <div class="p-6 border-b border-slate-800">
+            <h2 class="text-sky-400 font-black text-xl tracking-tighter">🔧 KOMBİ PRO</h2>
+        </div>
+
+        <nav class="flex-1 p-4 space-y-2">
+            <div onclick="ui.showView('list')" class="flex items-center gap-3 p-3 rounded-xl hover:bg-slate-800 cursor-pointer transition group">
+                <span class="text-slate-400 group-hover:text-white">👥</span>
+                <span class="font-semibold">Müşteri Listesi</span>
+            </div>
+            <div onclick="ui.showView('add')" class="flex items-center gap-3 p-3 rounded-xl hover:bg-slate-800 cursor-pointer transition group">
+                <span class="text-slate-400 group-hover:text-white">➕</span>
+                <span class="font-semibold">Yeni Kayıt Ekle</span>
+            </div>
+
+            <div class="pt-4 mt-4 border-t border-slate-800">
+                <button onclick="document.getElementById('excelInput').click()"
+                        class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-4 rounded-xl transition flex items-center justify-center gap-2">
+                    📥 Excel'den Aktar
+                </button>
+                <input type="file" id="excelInput" class="hidden" accept=".xlsx, .xls" onchange="ui.handleExcelUpload(this)">
+            </div>
+        </nav>
+
+        <div class="p-4 bg-slate-800/50 text-xs text-slate-500 text-center">
+            v2.0.0 | QA Verified
+        </div>
+    </aside>
+
+    <main class="flex-1 overflow-y-auto p-8">
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <div class="glass-card p-6 rounded-2xl shadow-sm border-l-4 border-blue-500">
+                <h3 class="text-slate-500 text-xs font-bold uppercase">Bu Ay Tahsilat</h3>
+                <p id="stat-month" class="text-2xl font-black text-slate-800">0 TL</p>
+            </div>
+            <div class="glass-card p-6 rounded-2xl shadow-sm border-l-4 border-amber-500">
+                <h3 class="text-slate-500 text-xs font-bold uppercase">Alınacak Toplam</h3>
+                <p id="stat-receivable" class="text-2xl font-black text-amber-600">0 TL</p>
+            </div>
+        </div>
+
+        <section id="view-list" class="bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden">
+            <div class="p-6 border-b flex justify-between items-center bg-slate-50/50">
+                <h2 class="text-xl font-bold text-slate-800">Müşteri Portföyü</h2>
+                <input type="text" id="search" onkeyup="ui.renderCustomers()" placeholder="Ara (İsim, semt, tel)..."
+                       class="border-2 border-slate-200 rounded-xl px-4 py-2 text-sm w-72 focus:border-blue-500 outline-none transition">
+            </div>
+            <table class="w-full text-left">
+                <thead class="bg-slate-50 text-slate-400 text-xs uppercase font-bold">
+                    <tr>
+                        <th class="px-8 py-4">Müşteri</th>
+                        <th class="px-8 py-4">İletişim</th>
+                        <th class="px-8 py-4">Bölge</th>
+                        <th class="px-8 py-4 text-right">Eylem</th>
+                    </tr>
+                </thead>
+                <tbody id="customer-list" class="divide-y divide-slate-100"></tbody>
+            </table>
+        </section>
+
+        <section id="view-add" class="hidden max-w-2xl mx-auto bg-white p-10 rounded-3xl shadow-2xl border border-slate-200">
+            <h2 class="text-2xl font-black mb-8 text-slate-800">Yeni Servis Kaydı</h2>
+            <p class="text-slate-400 italic">Form bileşenleri eklenebilir...</p>
+        </section>
+
+    </main>
+
+    <script>
+        // --- 1. API SERVİSİ (OOP) ---
+        class ApiService {
+            static BASE_URL = 'http://127.0.0.1:8000/api';
+
+            static async request(endpoint, method = 'GET', data = null) {
+                const options = { method };
+                if (data instanceof FormData) {
+                    options.body = data;
+                } else if (data) {
+                    options.headers = { 'Content-Type': 'application/json' };
+                    options.body = JSON.stringify(data);
+                }
+
+                try {
+                    const res = await fetch(`${this.BASE_URL}${endpoint}`, options);
+                    return await res.json();
+                } catch (err) {
+                    console.error("API Hatası:", err);
+                    alert("Sunucu bağlantısı kurulamadı!");
+                }
+            }
+        }
+
+        // --- 2. ARAYÜZ YÖNETİCİSİ (OOP) ---
+        class UIManager {
+            constructor() {
+                this.views = ['list', 'add'];
+            }
+
+            showView(viewName) {
+                this.views.forEach(v => {
+                    document.getElementById(`view-${v}`).classList.add('hidden');
+                });
+                document.getElementById(`view-${viewName}`).classList.remove('hidden');
+                if(viewName === 'list') this.renderCustomers();
+            }
+
+            async renderCustomers() {
+                const search = document.getElementById('search').value;
+                const customers = await ApiService.request(`/customers?q=${search}`);
+                const list = document.getElementById('customer-list');
+
+                if(!customers) return;
+
+                list.innerHTML = customers.map(c => `
+                    <tr class="hover:bg-blue-50/50 transition group">
+                        <td class="px-8 py-5">
+                            <div class="font-bold text-slate-700">${c.name}</div>
+                        </td>
+                        <td class="px-8 py-5 text-slate-500">${c.phone}</td>
+                        <td class="px-8 py-5 text-slate-400 font-medium">${c.district}</td>
+                        <td class="px-8 py-5 text-right">
+                            <button onclick="ui.openDetail(${c.id})" class="text-blue-600 font-bold hover:underline opacity-0 group-hover:opacity-100 transition">Detay</button>
+                        </td>
+                    </tr>
+                `).join('');
+                this.updateStats();
+            }
+
+            async updateStats() {
+                const data = await ApiService.request('/finance');
+                if(data) {
+                    document.getElementById('stat-month').innerText = `${data.aylik} TL`;
+                    document.getElementById('stat-receivable').innerText = `${data.alinacak} TL`;
+                }
+            }
+
+            async handleExcelUpload(input) {
+                if (!input.files[0]) return;
+
+                const formData = new FormData();
+                formData.append('file', input.files[0]);
+
+                const res = await ApiService.request('/import-excel', 'POST', formData);
+                if (res) {
+                    alert("İşlem Başarılı!");
+                    this.renderCustomers();
+                }
+                input.value = '';
+            }
+        }
+
+        const ui = new UIManager();
+        window.onload = () => ui.renderCustomers();
+    </script>
+</body>
+</html>
