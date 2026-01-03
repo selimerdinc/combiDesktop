@@ -123,6 +123,7 @@
                     <thead class="bg-slate-50 border-b">
                         <tr>
                             <th class="p-4">Tarih</th>
+                            <th class="p-4">Cihaz Modeli</th>
                             <th class="p-4">Yapılan İş</th>
                             <th class="p-4">Ödenen/Toplam</th>
                             <th class="p-4 text-right">Durum</th>
@@ -382,7 +383,7 @@
                     // En son kayıttaki marka bilgisini göster
                     const latestBrand = h.length > 0 ? (h[0].brand || "---") : "---";
                     document.getElementById('d-brand').innerText = latestBrand;
-                    document.getElementById('d-b').innerHTML = h.map(r => `<tr><td class="p-4 text-xs font-bold text-slate-400">${r.date}</td><td class="p-4 font-bold text-slate-700">${r.brand ? r.brand + ' - ' : ''}${r.job}</td><td class="p-4 font-black text-slate-500">${r.paid_fee}/${r.total_fee} TL</td><td class="p-4 text-right"><span class="px-3 py-1 rounded-lg text-[10px] font-black ${r.is_paid ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}">${r.is_paid ? 'ÖDENDİ' : 'BORÇ'}</span></td></tr>`).join('');
+                    document.getElementById('d-b').innerHTML = h.map(r => `<tr><td class="p-4 text-xs font-bold text-slate-400">${r.date}</td><td class="p-4 font-bold text-sky-600">${r.brand || '---'}</td><td class="p-4 font-bold text-slate-700">${r.job}</td><td class="p-4 font-black text-slate-500">${r.paid_fee}/${r.total_fee} TL</td><td class="p-4 text-right"><span class="px-3 py-1 rounded-lg text-[10px] font-black ${r.is_paid ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}">${r.is_paid ? 'ÖDENDİ' : 'BORÇ'}</span></td></tr>`).join('');
                     this.show('det');
                 } catch (e) { alert("Detay hatası!"); }
             }
