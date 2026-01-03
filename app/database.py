@@ -3,7 +3,9 @@ import os
 import hashlib
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-DB_NAME = os.path.join(BASE_DIR, "kombi_master_v2.db")
+DATA_DIR = os.path.join(BASE_DIR, "data")
+os.makedirs(DATA_DIR, exist_ok=True)
+DB_NAME = os.path.join(DATA_DIR, "kombi_master_v2.db")
 
 def hash_password(password: str) -> str:
     """Şifreyi SHA256 ile hash'le"""

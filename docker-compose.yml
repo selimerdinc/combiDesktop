@@ -6,10 +6,10 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      - kombi-data:/app
+      - kombi-db:/app/data
     restart: unless-stopped
     environment:
       - TZ=Europe/Istanbul
 
 volumes:
-  kombi-data:
+  kombi-db:
