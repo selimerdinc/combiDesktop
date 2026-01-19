@@ -96,3 +96,4 @@ combiDesktop/
 
 MIT
 # Auto-deploy test: Mon Jan 19 06:36:04 +03 2026
+
