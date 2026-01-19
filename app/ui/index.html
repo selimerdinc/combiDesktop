@@ -355,6 +355,22 @@
     <script>
         const api = "/api";
         let currentCustId = null;
+
+        // Tarih formatı: YYYY-MM-DD -> GG/AA/YYYY
+        function formatDate(dateStr) {
+            if (!dateStr) return '---';
+            const parts = dateStr.split('-');
+            if (parts.length !== 3) return dateStr;
+            return `${parts[2]}/${parts[1]}/${parts[0]}`;
+        }
+
+        // Ay formatı: YYYY-MM -> AA/YYYY
+        function formatMonth(monthStr) {
+            if (!monthStr) return '---';
+            const parts = monthStr.split('-');
+            if (parts.length !== 2) return monthStr;
+            return `${parts[1]}/${parts[0]}`;
+        }
         class UIManager {
             show(v) {
                 document.querySelectorAll('.view').forEach(el => el.classList.remove('active'));
@@ -383,7 +399,7 @@
                     // En son kayıttaki marka bilgisini göster
                     const latestBrand = h.length > 0 ? (h[0].brand || "---") : "---";
                     document.getElementById('d-brand').innerText = latestBrand;
-                    document.getElementById('d-b').innerHTML = h.map(r => `<tr><td class="p-4 text-xs font-bold text-slate-400">${r.date}</td><td class="p-4 font-bold text-sky-600">${r.brand || '---'}</td><td class="p-4 font-bold text-slate-700">${r.job}</td><td class="p-4 font-black text-slate-500">${r.paid_fee}/${r.total_fee} TL</td><td class="p-4 text-right"><span class="px-3 py-1 rounded-lg text-[10px] font-black ${r.is_paid ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}">${r.is_paid ? 'ÖDENDİ' : 'BORÇ'}</span></td></tr>`).join('');
+                    document.getElementById('d-b').innerHTML = h.map(r => `<tr><td class="p-4 text-xs font-bold text-slate-400">${formatDate(r.date)}</td><td class="p-4 font-bold text-sky-600">${r.brand || '---'}</td><td class="p-4 font-bold text-slate-700">${r.job}</td><td class="p-4 font-black text-slate-500">${r.paid_fee}/${r.total_fee} TL</td><td class="p-4 text-right"><span class="px-3 py-1 rounded-lg text-[10px] font-black ${r.is_paid ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}">${r.is_paid ? 'ÖDENDİ' : 'BORÇ'}</span></td></tr>`).join('');
                     this.show('det');
                 } catch (e) { alert("Detay hatası!"); }
             }
@@ -406,7 +422,7 @@
             }
             async loadFinance() {
                 const data = await (await fetch(`${api}/finance/monthly`)).json();
-                document.getElementById('f-b').innerHTML = data.map(f => `<tr><td class="p-4 font-black text-slate-700">${f.month}</td><td class="p-4 text-emerald-600 font-black">${f.total.toLocaleString()} TL</td></tr>`).join('');
+                document.getElementById('f-b').innerHTML = data.map(f => `<tr><td class="p-4 font-black text-slate-700">${formatMonth(f.month)}</td><td class="p-4 text-emerald-600 font-black">${f.total.toLocaleString()} TL</td></tr>`).join('');
             }
             async collect(id) {
                 if (confirm("Ödeme alındı mı?")) { await fetch(`${api}/records/${id}/collect`, { method: 'POST' }); this.loadReminders(); this.updateStats(); }
@@ -435,7 +451,7 @@
                 // Bakımları Yükle
                 const data = await (await fetch(`${api}/reminders`)).json();
                 const today = new Date().toISOString().split('T')[0];
-                document.getElementById('r-b').innerHTML = data.map(r => `<tr><td class="p-4 font-bold text-slate-700">${r.name}</td><td class="p-4 text-slate-500">${r.phone}</td><td class="p-4 font-black ${r.reminder_date < today ? 'text-red-600' : 'text-emerald-600'}">${r.reminder_date}</td><td class="p-4 text-right flex justify-end items-center gap-2"><button onclick="ui.openWhatsapp('${r.phone}', 'bakim', '${r.name}', 0)" class="bg-green-500 text-white px-3 py-1 rounded-lg text-[10px] font-bold hover:bg-green-600">🔔 Hatırlat</button><span class="px-3 py-1 rounded-lg text-[10px] font-black ${r.reminder_date < today ? 'bg-red-100 text-red-600' : 'bg-emerald-100 text-emerald-600'}">${r.reminder_date < today ? 'GEÇMİŞ' : 'YAKIN'}</span></td></tr>`).join('');
+                document.getElementById('r-b').innerHTML = data.map(r => `<tr><td class="p-4 font-bold text-slate-700">${r.name}</td><td class="p-4 text-slate-500">${r.phone}</td><td class="p-4 font-black ${r.reminder_date < today ? 'text-red-600' : 'text-emerald-600'}">${formatDate(r.reminder_date)}</td><td class="p-4 text-right flex justify-end items-center gap-2"><button onclick="ui.openWhatsapp('${r.phone}', 'bakim', '${r.name}', 0)" class="bg-green-500 text-white px-3 py-1 rounded-lg text-[10px] font-bold hover:bg-green-600">🔔 Hatırlat</button><span class="px-3 py-1 rounded-lg text-[10px] font-black ${r.reminder_date < today ? 'bg-red-100 text-red-600' : 'bg-emerald-100 text-emerald-600'}">${r.reminder_date < today ? 'GEÇMİŞ' : 'YAKIN'}</span></td></tr>`).join('');
 
                 // Alacakları Yükle (Tab entegrasyonu için)
                 const unpaid = await (await fetch(`${api}/finance/unpaid`)).json();
@@ -557,7 +573,7 @@
                         <tr class="hover:bg-slate-50">
                             <td class="p-4 font-bold text-slate-700">${u.username}</td>
                             <td class="p-4 text-slate-600">${u.name || '-'}</td>
-                            <td class="p-4 text-xs text-slate-400">${u.created_at ? u.created_at.split(' ')[0] : '-'}</td>
+                            <td class="p-4 text-xs text-slate-400">${u.created_at ? formatDate(u.created_at.split(' ')[0]) : '-'}</td>
                             <td class="p-4 text-right">
                                 <button onclick="ui.deleteUser(${u.id}, '${u.username}')" 
                                     class="px-3 py-1 bg-red-100 text-red-700 rounded-lg text-xs font-bold hover:bg-red-200">
