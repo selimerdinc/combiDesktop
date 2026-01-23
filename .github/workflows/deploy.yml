@@ -29,7 +29,12 @@ jobs:
             echo "🔐 Updating .env file..."
             echo "${{ secrets.ENV_FILE }}" > .env
             
-            echo "🐳 Restarting containers..."
+            echo "🐳 Restarting containers (Clean Rebuild)..."
+            # down command avoids the ContainerConfig bug in older docker-compose versions
+            docker-compose down || true
             docker-compose up -d --build
+            
+            echo "🧹 Cleaning up old images..."
+            docker image prune -f
             
             echo "✅ Deployment complete!"
