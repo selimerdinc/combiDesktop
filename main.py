@@ -10,6 +10,18 @@ from fastapi.staticfiles import StaticFiles
 from app.routers import customers, finance, records, auth
 from app.utils import logger
 
+def test_imports():
+    """Startup öncesi tüm bağımlılıkları kontrol et"""
+    try:
+        import fastapi, uvicorn, pandas, bcrypt, requests, dotenv
+        from app.routers import customers, finance, records, auth
+        from app.database import db_mgr
+        logger.info("✅ Core imports successful")
+        return True
+    except Exception as e:
+        logger.error(f"❌ Startup Import Error: {str(e)}", exc_info=True)
+        return False
+
 # FastAPI Uygulaması
 app = FastAPI()
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
@@ -101,6 +113,10 @@ def run_desktop():
 if __name__ == "__main__":
     import sys
     
+    if not test_imports():
+        logger.error("FATAL: Dependency or import failure. Check the logs above.")
+        sys.exit(1)
+        
     if "--web" in sys.argv or "--server" in sys.argv:
         # Sunucu modu: Sadece web servisi çalıştır
         logger.info("🌐 Sunucu modu aktif! http://0.0.0.0:8000")
