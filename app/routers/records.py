@@ -204,7 +204,7 @@ async def partial_payment(request: Request, id: int, data: dict):
         new_paid = record['paid_fee'] + amount
         is_paid = 1 if new_paid >= record['total_fee'] else 0
         
-        conn.execute("UPDATE records SET paid_fee = ?, is_paid = ? WHERE id = ?", 
-                    (new_paid, is_paid, id))
+        conn.execute("UPDATE records SET paid_fee = ?, is_paid = ? WHERE id = ? AND user_id = ?", 
+                    (new_paid, is_paid, id, user['user_id']))
         conn.commit()
     return {"status": "ok", "new_paid": new_paid}

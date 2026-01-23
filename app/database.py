@@ -1,6 +1,6 @@
 import sqlite3
 import os
-import hashlib
+import bcrypt
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA_DIR = os.path.join(BASE_DIR, "data")
@@ -8,8 +8,16 @@ os.makedirs(DATA_DIR, exist_ok=True)
 DB_NAME = os.path.join(DATA_DIR, "kombi_master_v2.db")
 
 def hash_password(password: str) -> str:
-    """Şifreyi SHA256 ile hash'le"""
-    return hashlib.sha256(password.encode()).hexdigest()
+    """Şifreyi bcrypt ile hash'le"""
+    salt = bcrypt.gensalt()
+    return bcrypt.hashpw(password.encode(), salt).decode()
+
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    """Şifreyi doğrula"""
+    try:
+        return bcrypt.checkpw(plain_password.encode(), hashed_password.encode())
+    except:
+        return False
 
 class DatabaseManager:
     def __init__(self):
@@ -89,17 +97,23 @@ class DatabaseManager:
                 pass
             
             # Varsayılan admin kullanıcı oluştur
-            admin_exists = conn.execute("SELECT id FROM users WHERE username = 'admin'").fetchone()
+            admin_exists = conn.execute("SELECT id, password_hash FROM users WHERE username = 'admin'").fetchone()
             if not admin_exists:
                 conn.execute(
                     "INSERT INTO users (username, password_hash, name) VALUES (?, ?, ?)",
                     ("admin", hash_password("kombi2024"), "Yönetici")
                 )
-                admin_id = conn.execute("SELECT id FROM users WHERE username = 'admin'").fetchone()[0]
-                
-                # Mevcut verileri admin'e ata
-                conn.execute("UPDATE customers SET user_id = ? WHERE user_id IS NULL", (admin_id,))
-                conn.execute("UPDATE records SET user_id = ? WHERE user_id IS NULL", (admin_id,))
+            else:
+                # Admin şifresini bcrypt'e yükselt (Migration)
+                current_hash = admin_exists['password_hash']
+                if not current_hash.startswith('$2b$'):
+                    new_hash = hash_password("kombi2024") 
+                    conn.execute("UPDATE users SET password_hash = ? WHERE id = ?", (new_hash, admin_exists['id']))
+            
+            admin_id = conn.execute("SELECT id FROM users WHERE username = 'admin'").fetchone()[0]
+            # Mevcut verileri admin'e ata
+            conn.execute("UPDATE customers SET user_id = ? WHERE user_id IS NULL", (admin_id,))
+            conn.execute("UPDATE records SET user_id = ? WHERE user_id IS NULL", (admin_id,))
             
             conn.commit()
 

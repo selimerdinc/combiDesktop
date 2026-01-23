@@ -26,6 +26,9 @@ jobs:
             echo "📥 Pulling latest changes..."
             git pull origin main
             
+            echo "🔐 Updating .env file..."
+            echo "${{ secrets.ENV_FILE }}" > .env
+            
             echo "🐳 Restarting containers..."
             docker-compose up -d --build
             

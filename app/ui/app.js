@@ -30,21 +30,58 @@ class UIManager {
         const q = encodeURIComponent(document.getElementById('q').value);
         const res = await fetch(`${api}/customers?q=${q}`);
         const data = await res.json();
-        document.getElementById('l-b').innerHTML = data.map(c => `<tr class="hover:bg-slate-50 cursor-pointer" onclick="ui.details(${c.id})"><td class="p-4 font-bold text-slate-700">${c.name}</td><td class="p-4 text-slate-500">${c.phone}</td><td class="p-4 text-xs font-medium text-slate-400">${c.district}</td><td class="p-4 text-right text-sky-600 font-bold">Detay →</td></tr>`).join('');
+        const container = document.getElementById('l-b');
+        container.innerHTML = '';
+        data.forEach(c => {
+            const tr = document.createElement('tr');
+            tr.className = 'hover:bg-slate-50 cursor-pointer';
+            tr.onclick = () => this.details(c.id);
+            tr.innerHTML = `
+                <td class="p-4 font-bold text-slate-700"></td>
+                <td class="p-4 text-slate-500"></td>
+                <td class="p-4 text-xs font-medium text-slate-400"></td>
+                <td class="p-4 text-right text-sky-600 font-bold">Detay →</td>
+            `;
+            tr.cells[0].textContent = c.name;
+            tr.cells[1].textContent = c.phone;
+            tr.cells[2].textContent = c.district;
+            container.appendChild(tr);
+        });
     }
     async details(id) {
         try {
             const c = await (await fetch(`${api}/customers/${id}`)).json();
             currentCustId = id;
-            document.getElementById('d-title').innerText = c.name;
-            document.getElementById('d-phone').innerText = c.phone || "---";
-            document.getElementById('d-district').innerText = c.district || "---";
-            document.getElementById('d-address').innerText = c.address || "---";
+            document.getElementById('d-title').textContent = c.name;
+            document.getElementById('d-phone').textContent = c.phone || "---";
+            document.getElementById('d-district').textContent = c.district || "---";
+            document.getElementById('d-address').textContent = c.address || "---";
             const h = await (await fetch(`${api}/customers/${id}/history`)).json();
-            // En son kayıttaki marka bilgisini göster
             const latestBrand = h.length > 0 ? (h[0].brand || "---") : "---";
-            document.getElementById('d-brand').innerText = latestBrand;
-            document.getElementById('d-b').innerHTML = h.map(r => `<tr><td class="p-4 text-xs font-bold text-slate-400">${formatDate(r.date)}</td><td class="p-4 font-bold text-sky-600">${r.brand || '---'}</td><td class="p-4 font-bold text-slate-700">${r.job}</td><td class="p-4 font-black text-slate-500">${r.paid_fee}/${r.total_fee} TL</td><td class="p-4 text-right"><span class="px-3 py-1 rounded-lg text-[10px] font-black ${r.is_paid ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}">${r.is_paid ? 'ÖDENDİ' : 'BORÇ'}</span></td></tr>`).join('');
+            document.getElementById('d-brand').textContent = latestBrand;
+
+            const container = document.getElementById('d-b');
+            container.innerHTML = '';
+            h.forEach(r => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="p-4 text-xs font-bold text-slate-400"></td>
+                    <td class="p-4 font-bold text-sky-600"></td>
+                    <td class="p-4 font-bold text-slate-700"></td>
+                    <td class="p-4 font-black text-slate-500"></td>
+                    <td class="p-4 text-right">
+                        <span class="px-3 py-1 rounded-lg text-[10px] font-black"></span>
+                    </td>
+                `;
+                tr.cells[0].textContent = formatDate(r.date);
+                tr.cells[1].textContent = r.brand || '---';
+                tr.cells[2].textContent = r.job;
+                tr.cells[3].textContent = `${r.paid_fee}/${r.total_fee} TL`;
+                const status = tr.cells[4].querySelector('span');
+                status.textContent = r.is_paid ? 'ÖDENDİ' : 'BORÇ';
+                status.className += r.is_paid ? ' bg-green-100 text-green-700' : ' bg-amber-100 text-amber-700';
+                container.appendChild(tr);
+            });
             this.show('det');
         } catch (e) { alert("Detay hatası!"); }
     }
@@ -67,7 +104,15 @@ class UIManager {
     }
     async loadFinance() {
         const data = await (await fetch(`${api}/finance/monthly`)).json();
-        document.getElementById('f-b').innerHTML = data.map(f => `<tr><td class="p-4 font-black text-slate-700">${formatMonth(f.month)}</td><td class="p-4 text-emerald-600 font-black">${f.total.toLocaleString()} TL</td></tr>`).join('');
+        const container = document.getElementById('f-b');
+        container.innerHTML = '';
+        data.forEach(f => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = '<td class="p-4 font-black text-slate-700"></td><td class="p-4 text-emerald-600 font-black"></td>';
+            tr.cells[0].textContent = formatMonth(f.month);
+            tr.cells[1].textContent = `${f.total.toLocaleString()} TL`;
+            container.appendChild(tr);
+        });
     }
     async collect(id) {
         if (confirm("Ödeme alındı mı?")) { await fetch(`${api}/records/${id}/collect`, { method: 'POST' }); this.loadReminders(); this.updateStats(); }
@@ -83,33 +128,72 @@ class UIManager {
         if (type === 'borc') msg = `Sayın ${name}, ${amount} TL tutarındaki bakiyeniz için ödeme yapmanızı rica ederiz.`;
         if (type === 'genel') msg = `Sayın ${name}, `;
 
-        // window.open yerine Python API kullanılır
         if (window.pywebview && window.pywebview.api) {
             window.pywebview.api.open_external(`https://wa.me/${p}?text=${encodeURIComponent(msg)}`);
         } else {
-            // Yedek yöntem (tarayıcıda çalışıyorsa)
             window.open(`https://wa.me/${p}?text=${encodeURIComponent(msg)}`, '_blank');
         }
     }
 
     async loadReminders() {
-        // Bakımları Yükle
         const data = await (await fetch(`${api}/reminders`)).json();
         const today = new Date().toISOString().split('T')[0];
-        document.getElementById('r-b').innerHTML = data.map(r => `<tr><td class="p-4 font-bold text-slate-700">${r.name}</td><td class="p-4 text-slate-500">${r.phone}</td><td class="p-4 font-black ${r.reminder_date < today ? 'text-red-600' : 'text-emerald-600'}">${formatDate(r.reminder_date)}</td><td class="p-4 text-right flex justify-end items-center gap-2"><button onclick="ui.openWhatsapp('${r.phone}', 'bakim', '${r.name}', 0)" class="bg-green-500 text-white px-3 py-1 rounded-lg text-[10px] font-bold hover:bg-green-600">🔔 Hatırlat</button><span class="px-3 py-1 rounded-lg text-[10px] font-black ${r.reminder_date < today ? 'bg-red-100 text-red-600' : 'bg-emerald-100 text-emerald-600'}">${r.reminder_date < today ? 'GEÇMİŞ' : 'YAKIN'}</span></td></tr>`).join('');
+        const rContainer = document.getElementById('r-b');
+        rContainer.innerHTML = '';
+        data.forEach(r => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td class="p-4 font-bold text-slate-700"></td>
+                <td class="p-4 text-slate-500"></td>
+                <td class="p-4 font-black"></td>
+                <td class="p-4 text-right flex justify-end items-center gap-2">
+                    <button class="bg-green-500 text-white px-3 py-1 rounded-lg text-[10px] font-bold hover:bg-green-600">🔔 Hatırlat</button>
+                    <span class="px-3 py-1 rounded-lg text-[10px] font-black"></span>
+                </td>
+            `;
+            tr.cells[0].textContent = r.name;
+            tr.cells[1].textContent = r.phone;
+            tr.cells[2].textContent = formatDate(r.reminder_date);
+            tr.cells[2].className += r.reminder_date < today ? ' text-red-600' : ' text-emerald-600';
 
-        // Alacakları Yükle (Tab entegrasyonu için)
+            const btn = tr.cells[3].querySelector('button');
+            btn.onclick = () => this.openWhatsapp(r.phone, 'bakim', r.name, 0);
+
+            const status = tr.cells[3].querySelector('span');
+            status.textContent = r.reminder_date < today ? 'GEÇMİŞ' : 'YAKIN';
+            status.className += r.reminder_date < today ? ' bg-red-100 text-red-600' : ' bg-emerald-100 text-emerald-600';
+            rContainer.appendChild(tr);
+        });
+
         const unpaid = await (await fetch(`${api}/finance/unpaid`)).json();
-        document.getElementById('u-b').innerHTML = unpaid.map(r => `<tr><td class="p-4 font-bold">${r.name}</td><td class="p-4 font-black text-amber-700">${r.debt.toLocaleString()} TL</td><td class="p-4 text-right flex justify-end items-center gap-2"><button onclick="ui.openWhatsapp('${r.phone}', 'borc', '${r.name}', '${r.debt.toLocaleString()}')" class="bg-green-500 text-white px-3 py-1 rounded-lg text-[10px] font-bold hover:bg-green-600">💬 Talep Et</button><button onclick="ui.collect(${r.id})" class="bg-emerald-600 text-white px-4 py-2 rounded-xl text-xs font-black">ÖDEME ALINDI</button></td></tr>`).join('');
+        const uContainer = document.getElementById('u-b');
+        uContainer.innerHTML = '';
+        unpaid.forEach(r => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td class="p-4 font-bold"></td>
+                <td class="p-4 font-black text-amber-700"></td>
+                <td class="p-4 text-right flex justify-end items-center gap-2">
+                    <button class="bg-green-500 text-white px-3 py-1 rounded-lg text-[10px] font-bold hover:bg-green-600">💬 Talep Et</button>
+                    <button class="bg-emerald-600 text-white px-4 py-2 rounded-xl text-xs font-black">ÖDEME ALINDI</button>
+                </td>
+            `;
+            tr.cells[0].textContent = r.name;
+            tr.cells[1].textContent = `${r.debt.toLocaleString()} TL`;
 
-        // Tab Yönetimi
+            const btns = tr.cells[2].querySelectorAll('button');
+            btns[0].onclick = () => this.openWhatsapp(r.phone, 'borc', r.name, r.debt.toLocaleString());
+            btns[1].onclick = () => this.collect(r.id);
+            uContainer.appendChild(tr);
+        });
+
         const debtTabBtn = document.getElementById('tab-btn-debt');
         if (unpaid.length > 0) {
             debtTabBtn.classList.remove('hidden');
         } else {
             debtTabBtn.classList.add('hidden');
             if (!document.getElementById('tab-content-debt').classList.contains('hidden')) {
-                this.switchTab('main'); // Eğer açıksa ana sekmeye at
+                this.switchTab('main');
             }
         }
     }
@@ -229,19 +313,29 @@ class UIManager {
             const res = await fetch(`${api}/auth/users`);
             if (!res.ok) return;
             const users = await res.json();
-            document.getElementById('users-list').innerHTML = users.map(u => `
-                <tr class="hover:bg-slate-50">
-                    <td class="p-4 font-bold text-slate-700">${u.username}</td>
-                    <td class="p-4 text-slate-600">${u.name || '-'}</td>
-                    <td class="p-4 text-xs text-slate-400">${u.created_at ? formatDate(u.created_at.split(' ')[0]) : '-'}</td>
+            const container = document.getElementById('users-list');
+            container.innerHTML = '';
+            users.forEach(u => {
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-slate-50';
+                tr.innerHTML = `
+                    <td class="p-4 font-bold text-slate-700"></td>
+                    <td class="p-4 text-slate-600"></td>
+                    <td class="p-4 text-xs text-slate-400"></td>
                     <td class="p-4 text-right">
-                        <button onclick="ui.deleteUser(${u.id}, '${u.username}')" 
-                            class="px-3 py-1 bg-red-100 text-red-700 rounded-lg text-xs font-bold hover:bg-red-200">
+                        <button class="px-3 py-1 bg-red-100 text-red-700 rounded-lg text-xs font-bold hover:bg-red-200">
                             🗑️ Sil
                         </button>
                     </td>
-                </tr>
-            `).join('');
+                `;
+                tr.cells[0].textContent = u.username;
+                tr.cells[1].textContent = u.name || '-';
+                tr.cells[2].textContent = u.created_at ? formatDate(u.created_at.split(' ')[0]) : '-';
+
+                const btn = tr.cells[3].querySelector('button');
+                btn.onclick = () => this.deleteUser(u.id, u.username);
+                container.appendChild(tr);
+            });
         } catch (e) { console.error('Users yüklenemedi:', e); }
     }
     async deleteUser(userId, username) {
@@ -266,7 +360,7 @@ window.onload = async () => {
         const authRes = await fetch(`${api}/auth/check`);
         const authData = await authRes.json();
         if (authData.authenticated) {
-            document.getElementById('current-user').innerText = '👤 ' + (authData.name || authData.username);
+            document.getElementById('current-user').textContent = '👤 ' + (authData.name || authData.username);
         }
     } catch (e) { }
     ui.show('list');

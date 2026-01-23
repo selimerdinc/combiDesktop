@@ -1,5 +1,6 @@
 from fastapi import APIRouter, HTTPException, Response, Request
-from app.database import db_mgr, hash_password
+from app.database import db_mgr, hash_password, verify_password
+import hashlib
 from datetime import datetime, timedelta
 import secrets
 
@@ -73,20 +74,36 @@ async def login(response: Response, data: dict):
             (username,)
         ).fetchone()
         
-        if user and user['password_hash'] == hash_password(password):
-            # Session token oluştur (veritabanına kaydedilir)
-            token = create_session(user['id'], username, user['name'])
+        if user:
+            is_valid = False
+            current_hash = user['password_hash']
             
-            # Cookie set et (7 gün geçerli)
-            response.set_cookie(
-                key="session_token",
-                value=token,
-                max_age=7 * 24 * 60 * 60,
-                httponly=True
-            )
-            return {"status": "ok", "name": user['name']}
-        else:
-            raise HTTPException(status_code=401, detail="Kullanıcı adı veya şifre hatalı!")
+            # 1. Bcrypt kontrolü
+            if current_hash.startswith('$2b$'):
+                is_valid = verify_password(password, current_hash)
+            # 2. Eski SHA256 kontrolü (Migration Fallback)
+            else:
+                legacy_hash = hashlib.sha256(password.encode()).hexdigest()
+                if current_hash == legacy_hash:
+                    # Başarılı login -> Bcrypt'e yükselt
+                    new_hash = hash_password(password)
+                    conn.execute("UPDATE users SET password_hash = ? WHERE id = ?", (new_hash, user['id']))
+                    conn.commit()
+                    is_valid = True
+            
+            if is_valid:
+                # Session token oluştur
+                token = create_session(user['id'], username, user['name'])
+                
+                response.set_cookie(
+                    key="session_token",
+                    value=token,
+                    max_age=7 * 24 * 60 * 60,
+                    httponly=True
+                )
+                return {"status": "ok", "name": user['name']}
+        
+        raise HTTPException(status_code=401, detail="Kullanıcı adı veya şifre hatalı!")
 
 @router.post("/logout")
 async def logout(request: Request, response: Response):
@@ -184,7 +201,7 @@ async def change_password(request: Request, data: dict):
             (user['user_id'],)
         ).fetchone()
         
-        if not db_user or db_user['password_hash'] != hash_password(current_password):
+        if not db_user or not verify_password(current_password, db_user['password_hash']):
             raise HTTPException(status_code=400, detail="Mevcut şifre yanlış!")
         
         conn.execute(

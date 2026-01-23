@@ -75,10 +75,10 @@ async def update_customer(request: Request, id: int, data: dict):
                                    (new_name, id, user['user_id'])).fetchone()
             if existing:
                 target_id = existing['id']
-                conn.execute("UPDATE records SET customer_id = ? WHERE customer_id = ?", (target_id, id))
-                conn.execute("UPDATE customers SET phone=?, district=?, address=? WHERE id=?",
-                             (phone_cleaned, data['district'], data['address'], target_id))
-                conn.execute("DELETE FROM customers WHERE id = ?", (id,))
+                conn.execute("UPDATE records SET customer_id = ? WHERE customer_id = ? AND user_id = ?", (target_id, id, user['user_id']))
+                conn.execute("UPDATE customers SET phone=?, district=?, address=? WHERE id=? AND user_id = ?",
+                             (phone_cleaned, data['district'], data['address'], target_id, user['user_id']))
+                conn.execute("DELETE FROM customers WHERE id = ? AND user_id = ?", (id, user['user_id']))
                 conn.commit()
                 return {"status": "merged", "new_id": target_id}
             else:
@@ -131,8 +131,8 @@ async def add_customer_service(request: Request, data: dict):
             existing = conn.execute("SELECT id FROM customers WHERE name = ? AND user_id = ?", (name_val, user_id)).fetchone()
             if existing:
                 c_id = existing['id']
-                conn.execute("UPDATE customers SET phone=?, district=?, address=? WHERE id=?", 
-                            (phone_cleaned, data['district'], data['address'], c_id))
+                conn.execute("UPDATE customers SET phone=?, district=?, address=? WHERE id=? AND user_id = ?", 
+                            (phone_cleaned, data['district'], data['address'], c_id, user_id))
             else:
                 c_id = conn.execute("INSERT INTO customers (user_id, name, phone, district, address) VALUES (?,?,?,?,?)", 
                                    (user_id, name_val, phone_cleaned, data['district'], data['address'])).lastrowid

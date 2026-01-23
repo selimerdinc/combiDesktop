@@ -36,6 +36,17 @@ def get_html(path):
         version = int(time.time())
         return content.replace("{{VERSION}}", str(version))
 
+# Güvenlik Headerları Middleware
+@app.middleware("http")
+async def add_security_headers(request: Request, call_next):
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["X-XSS-Protection"] = "1; mode=block"
+    # Content-Security-Policy: Sadece güvenli kaynaklara izin ver
+    response.headers["Content-Security-Policy"] = "default-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com; img-src 'self' data:; connect-src 'self'"
+    return response
+
 # Auth Middleware - API dışındaki tüm istekleri kontrol et
 @app.middleware("http")
 async def auth_middleware(request: Request, call_next):

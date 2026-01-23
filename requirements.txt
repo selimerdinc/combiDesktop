@@ -6,3 +6,4 @@ pywebview
 pandas
 requests
 python-dotenv
+bcrypt
