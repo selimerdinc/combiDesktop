@@ -51,7 +51,7 @@ async def add_security_headers(request: Request, call_next):
 @app.middleware("http")
 async def auth_middleware(request: Request, call_next):
     # Bu yollar auth gerektirmez
-    public_paths = ["/login", "/api/auth/login", "/api/auth/check"]
+    public_paths = ["/login", "/api/auth/login", "/api/auth/check", "/health", "/static"]
     
     if any(request.url.path.startswith(p) for p in public_paths):
         return await call_next(request)
@@ -66,6 +66,11 @@ async def auth_middleware(request: Request, call_next):
         return HTMLResponse(status_code=401, content='{"detail": "Oturum gerekli"}')
     
     return RedirectResponse(url="/login", status_code=302)
+
+# Sağlık Kontrolü
+@app.get("/health")
+def health_check():
+    return {"status": "ok", "time": time.time()}
 
 # Login sayfası
 @app.get("/login", response_class=HTMLResponse)

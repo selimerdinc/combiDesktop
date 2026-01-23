@@ -24,29 +24,35 @@ class DatabaseManager:
         self._init_db()
 
     def get_connection(self):
-        conn = sqlite3.connect(DB_NAME, check_same_thread=False)
-        conn.row_factory = sqlite3.Row
-        
-        # Gelişmiş Türkçe Normalizasyon
-        tr_map = str.maketrans({
-            'ç': 'C', 'Ç': 'C',
-            'ğ': 'G', 'Ğ': 'G',
-            'ı': 'I', 'I': 'I', 'i': 'I', 'İ': 'I',
-            'ö': 'O', 'Ö': 'O',
-            'ş': 'S', 'Ş': 'S',
-            'ü': 'U', 'Ü': 'U'
-        })
-        
-        conn.create_function("PY_UPPER", 1, lambda x: str(x).translate(tr_map).upper() if x else "")
-        
-        # Foreign Key desteğini her bağlantıda aç
-        conn.execute("PRAGMA foreign_keys = ON")
-        
-        return conn
+        try:
+            conn = sqlite3.connect(DB_NAME, check_same_thread=False)
+            conn.row_factory = sqlite3.Row
+            
+            # Gelişmiş Türkçe Normalizasyon
+            tr_map = str.maketrans({
+                'ç': 'C', 'Ç': 'C',
+                'ğ': 'G', 'Ğ': 'G',
+                'ı': 'I', 'I': 'I', 'i': 'I', 'İ': 'I',
+                'ö': 'O', 'Ö': 'O',
+                'ş': 'S', 'Ş': 'S',
+                'ü': 'U', 'Ü': 'U'
+            })
+            
+            conn.create_function("PY_UPPER", 1, lambda x: str(x).translate(tr_map).upper() if x else "")
+            
+            # Foreign Key desteğini her bağlantıda aç
+            conn.execute("PRAGMA foreign_keys = ON")
+            
+            return conn
+        except sqlite3.Error as e:
+            from app.utils import logger
+            logger.error(f"Database connection error: {e}")
+            raise
 
     def _init_db(self):
-        with self.get_connection() as conn:
-            conn.execute("PRAGMA foreign_keys = ON")
+        try:
+            with self.get_connection() as conn:
+                conn.execute("PRAGMA foreign_keys = ON")
             
             # Users tablosu
             conn.execute('''CREATE TABLE IF NOT EXISTS users (
@@ -116,5 +122,9 @@ class DatabaseManager:
             conn.execute("UPDATE records SET user_id = ? WHERE user_id IS NULL", (admin_id,))
             
             conn.commit()
+        except Exception as e:
+            from app.utils import logger
+            logger.error(f"Database initialization failed: {e}")
+            # Hata durumunda bile devam etmeye çalış ama logla
 
 db_mgr = DatabaseManager()
