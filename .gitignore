@@ -50,6 +50,7 @@ Thumbs.db
 *.key
 *.pem
 cookies.txt
+.env
 
 # Backup files
 backups/

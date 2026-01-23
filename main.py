@@ -1,11 +1,14 @@
 import threading
 import uvicorn
 import os
+import time
 import webbrowser
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.staticfiles import StaticFiles
 from app.routers import customers, finance, records, auth
+from app.utils import logger
 
 # FastAPI Uygulaması
 app = FastAPI()
@@ -19,12 +22,19 @@ app.include_router(auth.router)
 
 # HTML Dosya Yolları
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-TEMPLATE_PATH = os.path.join(BASE_DIR, "app", "ui", "index.html")
-LOGIN_PATH = os.path.join(BASE_DIR, "app", "ui", "login.html")
+UI_DIR = os.path.join(BASE_DIR, "app", "ui")
+TEMPLATE_PATH = os.path.join(UI_DIR, "index.html")
+LOGIN_PATH = os.path.join(UI_DIR, "login.html")
+
+# Static dosyaları servis et (JS, CSS, Resimler için)
+app.mount("/static", StaticFiles(directory=UI_DIR), name="static")
 
 def get_html(path):
     with open(path, "r", encoding="utf-8") as f:
-        return f.read()
+        content = f.read()
+        # Her sunucu basladiginda yeni bir version ID uret (Cache Busting)
+        version = int(time.time())
+        return content.replace("{{VERSION}}", str(version))
 
 # Auth Middleware - API dışındaki tüm istekleri kontrol et
 @app.middleware("http")
@@ -77,11 +87,11 @@ if __name__ == "__main__":
     
     if "--web" in sys.argv or "--server" in sys.argv:
         # Sunucu modu: Sadece web servisi çalıştır
-        print("🌐 Sunucu modu aktif!")
-        print("📱 Tarayıcıdan erişin: http://0.0.0.0:8000")
+        logger.info("🌐 Sunucu modu aktif! http://0.0.0.0:8000")
         uvicorn.run(app, host="0.0.0.0", port=8000, log_level="info")
     else:
         # Desktop modu: pywebview ile masaüstü uygulaması
+        logger.info("🖥️ Masaüstü modu başlatılıyor...")
         t = threading.Thread(target=lambda: uvicorn.run(app, host="127.0.0.1", port=8000, log_level="error"), daemon=True)
         t.start()
         run_desktop()

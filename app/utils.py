@@ -1,3 +1,14 @@
+import logging
+import sys
+
+# Logging Config
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    handlers=[logging.StreamHandler(sys.stdout)]
+)
+logger = logging.getLogger("kombi-pro")
+
 def clean_phone(p):
     if not p: return ""
     return "".join(filter(str.isdigit, str(p)))
