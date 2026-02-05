@@ -10,6 +10,8 @@ services:
     restart: unless-stopped
     environment:
       - TZ=Europe/Istanbul
+    env_file:
+      - .env
 
 volumes:
   kombi-db:

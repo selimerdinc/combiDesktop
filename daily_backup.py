@@ -8,6 +8,10 @@ sys.path.append(BASE_DIR)
 
 from app.notification_service import send_database_to_telegram
 from app.utils import logger
+from dotenv import load_dotenv
+
+# .env dosyasını yükle (mutlak yol ile)
+load_dotenv(os.path.join(BASE_DIR, ".env"))
 
 def run_daily_backup():
     # Veritabanı yolu (app/database.py ile aynı mantıkta)
